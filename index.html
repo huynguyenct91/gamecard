@@ -12,8 +12,34 @@
         .preserve-3d { transform-style: preserve-3d; }
         .backface-hidden { backface-visibility: hidden; }
         .rotate-y-180 { transform: rotateY(180deg); }
-        /* Tốc độ lật mượt mà */
-        #card-wrapper { transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
+        
+        /* Hiệu ứng lật mượt và nảy (bouncy) tăng cảm giác thích thú */
+        #card-wrapper { transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        
+        /* Hiệu ứng gây cấn (rung lắc nhẹ và phóng to trước khi lật) */
+        #card-container { transition: transform 0.3s ease; }
+        .suspense-active {
+            animation: suspense-shake 0.1s linear infinite;
+            transform: scale(1.05);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+        }
+        
+        @keyframes suspense-shake {
+            0%, 100% { transform: translate(0, 0) scale(1.05); }
+            25% { transform: translate(1px, -1px) scale(1.05); }
+            50% { transform: translate(-1px, 1px) scale(1.05); }
+            75% { transform: translate(-1px, -1px) scale(1.05); }
+        }
+
+        /* Hiệu ứng Icon gợi ý nổ ra rồi bay lên biến mất */
+        .floating-icon {
+            animation: float-fade 1.5s ease-out forwards;
+        }
+        @keyframes float-fade {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            15% { transform: translate(-50%, -60%) scale(1.5); opacity: 1; }
+            100% { transform: translate(-50%, -150%) scale(2); opacity: 0; }
+        }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 flex flex-col font-sans">
@@ -24,13 +50,8 @@
         <p class="text-orange-600 mt-2 text-sm font-medium">Tâm tình - vui vẻ - ăn - ngủ</p>
     </header>
 
-    <!-- Khu vực Bộ lọc chủ đề -->
-    <div id="category-container" class="flex justify-center gap-2 mt-6 px-4 flex-wrap">
-        <!-- Các nút chủ đề sẽ được JS tạo ra ở đây -->
-    </div>
-
     <!-- Khu vực Thẻ bài -->
-    <main class="flex-1 flex flex-col items-center justify-center p-6 perspective-1000">
+    <main class="flex-1 flex flex-col items-center justify-center p-6 perspective-1000 mt-4">
         
         <!-- Khung chứa thẻ bài -->
         <div id="card-container" class="relative w-full max-w-sm aspect-[3/4] cursor-pointer group" onclick="flipCard()">
@@ -43,7 +64,7 @@
                          <svg class="text-white w-12 h-12" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
                     </div>
                     <span class="text-white font-bold text-xl tracking-widest uppercase">Rút Thẻ</span>
-                    <p class="text-orange-100 mt-4 text-sm px-8 text-center">Bấm để lật thẻ và trả lời câu hỏi</p>
+                    <p class="text-orange-100 mt-4 text-sm px-8 text-center">Sẵn sàng đón nhận câu hỏi tiếp theo</p>
                 </div>
 
                 <!-- MẶT TRƯỚC (LÚC NGỬA BÀI CÓ CÂU HỎI) -->
@@ -55,7 +76,7 @@
         </div>
 
         <!-- Nút bốc bài -->
-        <div class="mt-10 flex gap-4">
+        <div class="mt-12 flex gap-4">
             <button id="next-btn" onclick="drawRandomCard()" class="flex items-center gap-2 bg-gray-900 text-white px-8 py-4 rounded-2xl font-bold shadow-lg hover:bg-gray-800 active:scale-95 transition-all">
                 <svg id="refresh-icon" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                 Rút câu hỏi mới
@@ -75,36 +96,100 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Kho chứa các Icon dạng SVG (Thay thế cho thư viện lỗi lúc nãy)
-        const ICONS = {
-            heart: '<svg class="w-8 h-8 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
-            coffee: '<svg class="w-8 h-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>',
-            sparkles: '<svg class="w-8 h-8 text-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>'
-        };
-
-        // Danh sách câu hỏi
+        // Danh sách câu hỏi (Giữ nguyên các thuộc tính phân loại để xử lý logic ngầm)
         const CARD_DATA = [
-          { id: 1, category: 'Đời sống', iconType: 'coffee', color: 'text-blue-500', bg: 'bg-blue-50', question: 'Kỷ niệm đáng nhớ nhất thời thơ ấu của bạn là gì?' },
-          { id: 2, category: 'Đời sống', iconType: 'coffee', color: 'text-blue-500', bg: 'bg-blue-50', question: 'Điều gì làm bạn cảm thấy bình an nhất sau một ngày làm việc/học tập mệt mỏi?' },
-          { id: 3, category: 'Đời sống', iconType: 'coffee', color: 'text-blue-500', bg: 'bg-blue-50', question: 'Một thói quen tốt mà bạn đang cố gắng xây dựng trong năm nay?' },
-          { id: 4, category: 'Đời sống', iconType: 'coffee', color: 'text-blue-500', bg: 'bg-blue-50', question: 'Nếu có một ngày hoàn toàn rảnh rỗi, bạn sẽ dành nó để làm gì?' },
-          { id: 5, category: 'Đời sống', iconType: 'coffee', color: 'text-blue-500', bg: 'bg-blue-50', question: 'Một bài học đắt giá bạn rút ra được từ một thất bại trong quá khứ?' },
+          { id: 1, category: 'Đời sống', question: 'Kỷ niệm đáng nhớ nhất thời thơ ấu của bạn là gì?' },
+          { id: 2, category: 'Đời sống', question: 'Điều gì làm bạn cảm thấy bình an nhất sau một ngày làm việc/học tập mệt mỏi?' },
+          { id: 3, category: 'Đời sống', question: 'Một thói quen tốt mà bạn đang cố gắng xây dựng trong năm nay?' },
+          { id: 4, category: 'Đời sống', question: 'Nếu có một ngày hoàn toàn rảnh rỗi, bạn sẽ dành nó để làm gì?' },
+          { id: 5, category: 'Đời sống', question: 'Một bài học đắt giá bạn rút ra được từ một thất bại trong quá khứ?' },
           
-          { id: 6, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Câu Kinh Thánh nào luôn nâng đỡ bạn trong những lúc khó khăn nhất?' },
-          { id: 7, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Hãy kể về một lần bạn nhận thấy sự tể trị (hoặc sự đáp lời) của Chúa rõ ràng nhất trong đời mình.' },
-          { id: 8, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Bạn thường cầu nguyện cho điều gì nhiều nhất trong khoảng thời gian này?' },
-          { id: 9, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Nếu được ngồi trò chuyện với một nhân vật trong Kinh Thánh (ngoài Chúa Jesus), bạn chọn ai và tại sao?' },
-          { id: 10, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Một bài Thánh ca hoặc Thánh nhạc nào luôn khiến bạn cảm động khi hát/nghe?' },
-          { id: 11, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Điều gì là thử thách lớn nhất đối với đức tin của bạn hiện tại?' },
+          { id: 6, category: 'Tâm tình', question: 'Câu Kinh Thánh nào luôn nâng đỡ bạn trong những lúc khó khăn nhất?' },
+          { id: 7, category: 'Tâm tình', question: 'Hãy kể về một lần bạn nhận thấy sự tể trị (hoặc sự đáp lời) của Chúa rõ ràng nhất trong đời mình.' },
+          { id: 8, category: 'Tâm tình', question: 'Bạn thường cầu nguyện cho điều gì nhiều nhất trong khoảng thời gian này?' },
+          { id: 9, category: 'Tâm tình', question: 'Nếu được ngồi trò chuyện với một nhân vật trong Kinh Thánh (ngoài Chúa Jesus), bạn chọn ai và tại sao?' },
+          { id: 10, category: 'Tâm tình', question: 'Một bài Thánh ca hoặc Thánh nhạc nào luôn khiến bạn cảm động khi hát/nghe?' },
+          { id: 11, category: 'Tâm tình', question: 'Điều gì là thử thách lớn nhất đối với đức tin của bạn hiện tại?' },
 
-          { id: 12, category: 'Vui vẻ', iconType: 'sparkles', color: 'text-amber-500', bg: 'bg-amber-50', question: 'Nếu bắt buộc phải ăn một món duy nhất mỗi ngày trong suốt 1 năm, bạn sẽ chọn món gì?' },
-          { id: 13, category: 'Vui vẻ', iconType: 'sparkles', color: 'text-amber-500', bg: 'bg-amber-50', question: 'Một "tài lẻ" vô tri hoặc kỳ quặc nhất mà bạn có thể làm là gì?' },
-          { id: 14, category: 'Vui vẻ', iconType: 'sparkles', color: 'text-amber-500', bg: 'bg-amber-50', question: 'Nếu bị kẹt trên đảo hoang và chỉ được mang theo 1 người trong nhóm mình ngay lúc này, bạn chọn ai?' },
-          { id: 15, category: 'Vui vẻ', iconType: 'sparkles', color: 'text-amber-500', bg: 'bg-amber-50', question: 'Nếu cuộc đời bạn là một bộ phim, tựa đề của bộ phim đó sẽ là gì?' },
-          { id: 16, category: 'Vui vẻ', iconType: 'sparkles', color: 'text-amber-500', bg: 'bg-amber-50', question: 'Bạn thích được tặng một món quà đắt tiền hay một trải nghiệm thú vị (như đi du lịch)?' }
+          { id: 12, category: 'Vui vẻ', question: 'Nếu bắt buộc phải ăn một món duy nhất mỗi ngày trong suốt 1 năm, bạn sẽ chọn món gì?' },
+          { id: 13, category: 'Vui vẻ', question: 'Một "tài lẻ" vô tri hoặc kỳ quặc nhất mà bạn có thể làm là gì?' },
+          { id: 14, category: 'Vui vẻ', question: 'Nếu bị kẹt trên đảo hoang và chỉ được mang theo 1 người trong nhóm mình ngay lúc này, bạn chọn ai?' },
+          { id: 15, category: 'Vui vẻ', question: 'Nếu cuộc đời bạn là một bộ phim, tựa đề của bộ phim đó sẽ là gì?' },
+          { id: 16, category: 'Vui vẻ', question: 'Bạn thích được tặng một món quà đắt tiền hay một trải nghiệm thú vị (như đi du lịch)?' }
         ];
 
-        const CATEGORIES = ['Tất cả', 'Đời sống', 'Tâm tình', 'Vui vẻ'];
+        // --- HỆ THỐNG ÂM THANH (Web Audio API) ---
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+        
+        // Trình giả lập sóng âm
+        function playTone(freq, type, duration, vol = 0.1) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        let suspenseInterval;
+        function startSuspenseSound() {
+            let tick = 0;
+            suspenseInterval = setInterval(() => {
+                playTone(150 + (tick % 2) * 50, 'triangle', 0.1, 0.05); // Tiếng nhịp tim/trống
+                tick++;
+            }, 150);
+        }
+
+        function stopSuspenseSound() {
+            clearInterval(suspenseInterval);
+        }
+
+        function playRevealSound() {
+            playTone(523.25, 'sine', 0.4, 0.1); // Nốt Đồ
+            setTimeout(() => playTone(659.25, 'sine', 0.4, 0.1), 100); // Nốt Mi
+            setTimeout(() => playTone(783.99, 'sine', 0.6, 0.15), 200); // Nốt Son (Hợp âm rạng rỡ)
+        }
+
+        function playClickSound() {
+            playTone(600, 'sine', 0.1, 0.05); // Tiếng click nhẹ
+        }
+
+        // --- HỆ THỐNG ICON GỢI Ý BÍ MẬT ---
+        const SECRET_ICONS = {
+            'Đời sống': '<svg class="w-16 h-16 text-blue-500 drop-shadow-xl" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/></svg>',
+            'Tâm tình': '<svg class="w-16 h-16 text-red-500 drop-shadow-xl" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
+            'Vui vẻ': '<svg class="w-16 h-16 text-amber-500 drop-shadow-xl" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
+        };
+
+        function spawnFloatingIcon(category) {
+            const container = document.getElementById('card-container');
+            const el = document.createElement('div');
+            el.innerHTML = SECRET_ICONS[category];
+            el.className = 'absolute z-50 pointer-events-none floating-icon';
+
+            // Xuất hiện ngẫu nhiên xung quanh khu vực thẻ
+            const randomX = Math.floor(Math.random() * 80) + 10; // Từ 10% đến 90%
+            const randomY = Math.floor(Math.random() * 80) + 10;
+            
+            el.style.left = `${randomX}%`;
+            el.style.top = `${randomY}%`;
+
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 1500); // Xóa khỏi bộ nhớ sau 1.5s
+        }
 
         // --- HỆ THỐNG ĐỒNG BỘ ĐA NGƯỜI CHƠI ---
         let db, auth;
@@ -154,59 +239,25 @@
         // Các biến lưu trữ trạng thái Game
         let currentCard = null;
         let isFlipped = false;
-        let activeCategory = 'Tất cả';
         let isAnimating = false;
 
         // Trỏ tới các thành phần HTML
+        const cardContainer = document.getElementById('card-container');
         const cardWrapper = document.getElementById('card-wrapper');
         const cardFront = document.getElementById('card-front');
-        const categoryContainer = document.getElementById('category-container');
         const refreshIcon = document.getElementById('refresh-icon');
         const nextBtn = document.getElementById('next-btn');
 
         // Gắn sự kiện click vào window object để gọi được từ HTML
         window.drawRandomCard = drawRandomCard;
         window.flipCard = flipCard;
-        window.handleCategoryChange = handleCategoryChange;
 
         function init() {
-            renderCategories();
-            // Không tự động rút bài khi mở web nữa, mỗi người sẽ tự bấm thẻ của mình.
             updateCardTransform(); 
-        }
-
-        function renderCategories() {
-            categoryContainer.innerHTML = '';
-            CATEGORIES.forEach(cat => {
-                const btn = document.createElement('button');
-                const isActive = activeCategory === cat;
-                btn.className = `px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
-                    isActive 
-                    ? 'bg-orange-500 text-white shadow-md transform scale-105' 
-                    : 'bg-white text-orange-700 hover:bg-orange-100 border border-orange-200'
-                }`;
-                btn.textContent = cat;
-                btn.onclick = () => handleCategoryChange(cat);
-                categoryContainer.appendChild(btn);
-            });
-        }
-
-        function handleCategoryChange(category) {
-            if (isAnimating) return;
-            activeCategory = category;
-            renderCategories();
         }
 
         // --- THUẬT TOÁN TỶ LỆ: 60% Tâm Tình, 20% Đời Sống, 20% Vui vẻ ---
         function getRandomCardWithProbability(availableCards) {
-            // Nếu người chơi chọn 1 chủ đề cụ thể, thì chỉ bốc trong chủ đề đó
-            if (activeCategory !== 'Tất cả') {
-                const cards = availableCards.filter(c => c.category === activeCategory);
-                if (cards.length === 0) return null;
-                return cards[Math.floor(Math.random() * cards.length)];
-            }
-
-            // Nếu chọn "Tất cả", áp dụng tỷ lệ
             const tamTinhCards = availableCards.filter(c => c.category === 'Tâm tình');
             const doiSongCards = availableCards.filter(c => c.category === 'Đời sống');
             const vuiVeCards = availableCards.filter(c => c.category === 'Vui vẻ');
@@ -231,6 +282,7 @@
         }
 
         async function drawRandomCard() {
+            initAudio(); // Phải kích hoạt luồng âm thanh ngay khi người dùng bấm
             if (isAnimating) return;
 
             // Chỉ lọc ra các thẻ mà CHƯA CÓ AI trong nhóm bốc trúng
@@ -250,16 +302,18 @@
             if (!nextCard) return;
 
             isAnimating = true;
-            isFlipped = false;
-            updateCardTransform();
-            
             refreshIcon.classList.add('animate-spin');
             nextBtn.classList.add('opacity-50');
 
-            setTimeout(async () => {
-                currentCard = nextCard;
+            // Hàm thực thi chuỗi UX Gây cấn
+            const performFlipSequence = async () => {
+                playClickSound(); // Tiếng click khởi động
                 
-                // Đồng bộ việc đã bốc thẻ này lên hệ thống chung cho 19 người kia
+                // Bước 1: Rung lắc gây cấn
+                cardContainer.classList.add('suspense-active');
+                startSuspenseSound(); // Bật âm thanh dồn dập
+
+                // Đồng bộ việc đã bốc thẻ này lên hệ thống
                 if (!globalDrawnIds.includes(nextCard.id)) {
                     globalDrawnIds.push(nextCard.id);
                 }
@@ -268,19 +322,47 @@
                     await updateDoc(roomRef, { drawnIds: globalDrawnIds });
                 }
 
-                renderCardContent();
-                isFlipped = true; 
+                // Bước 2: Chờ 1.2s rồi lật bài
+                setTimeout(() => {
+                    // Dừng rung lắc
+                    cardContainer.classList.remove('suspense-active');
+                    stopSuspenseSound(); // Dừng nhịp trống
+                    
+                    // Cập nhật câu hỏi
+                    currentCard = nextCard;
+                    renderCardContent();
+                    
+                    // Lật ngửa thẻ bài với hiệu ứng bouncy
+                    isFlipped = true; 
+                    updateCardTransform();
+                    
+                    playRevealSound(); // Ting ting!
+                    spawnFloatingIcon(nextCard.category); // Bắn icon gợi ý ra ngoài
+
+                    // Bước 3: Đợi lật xong (0.8s) mới mở khóa bấm
+                    setTimeout(() => {
+                        isAnimating = false;
+                        refreshIcon.classList.remove('animate-spin');
+                        nextBtn.classList.remove('opacity-50');
+                    }, 800);
+                }, 1200); // 1.2 giây rung lắc
+            };
+
+            // Nếu thẻ đang ngửa, phải úp thẻ xuống trước rồi mới chạy hiệu ứng
+            if (isFlipped) {
+                isFlipped = false;
                 updateCardTransform();
-                
-                isAnimating = false;
-                refreshIcon.classList.remove('animate-spin');
-                nextBtn.classList.remove('opacity-50');
-            }, 400);
+                // Đợi 0.8s cho thẻ úp hẳn
+                setTimeout(performFlipSequence, 800); 
+            } else {
+                performFlipSequence();
+            }
         }
 
         function flipCard() {
+            initAudio(); // Kích hoạt luồng âm thanh
             if (isAnimating) return;
-            // Nếu mới vào chưa bốc thẻ nào, bấm vào mặt sau sẽ tự bốc
+            // Nếu mới vào chưa bốc thẻ nào, bấm vào mặt sau sẽ tự bốc có hiệu ứng gây cấn
             if (!isFlipped && !currentCard) {
                 drawRandomCard();
                 return;
@@ -288,6 +370,9 @@
             if (!isFlipped) {
                 isFlipped = true;
                 updateCardTransform();
+                playRevealSound();
+            } else {
+                playClickSound();
             }
         }
 
@@ -303,13 +388,10 @@
             if (!currentCard) return;
             
             cardFront.innerHTML = `
-                <div class="w-16 h-16 rounded-full ${currentCard.bg} flex items-center justify-center mb-6 shadow-sm">
-                    ${ICONS[currentCard.iconType]}
+                <!-- Icon trích dẫn chung, không tiết lộ chủ đề -->
+                <div class="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mb-4 shadow-sm border border-orange-200">
+                    <svg class="w-8 h-8 text-orange-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h4v10h-10z"/></svg>
                 </div>
-                
-                <span class="text-xs font-bold uppercase tracking-wider ${currentCard.color} mb-4">
-                    ${currentCard.category}
-                </span>
 
                 <div class="flex-1 flex items-center justify-center">
                     <h2 class="text-2xl font-bold text-gray-800 leading-snug">
@@ -317,6 +399,7 @@
                     </h2>
                 </div>
 
+                <!-- Hoa văn trang trí góc -->
                 <div class="w-full flex justify-between mt-6 opacity-20">
                     <svg class="w-6 h-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
                     <svg class="w-6 h-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
