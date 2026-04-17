@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhịp Cầu Tâm Giao</title>
+    <!-- Tải trực tiếp thư viện giao diện TailwindCSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* CSS cho hiệu ứng lật thẻ 3D */
+        .perspective-1000 { perspective: 1000px; }
+        .preserve-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        /* Tốc độ lật mượt mà */
+        #card-wrapper { transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 flex flex-col font-sans">
+
+    <!-- Header -->
+    <header class="pt-8 pb-4 px-6 text-center shadow-sm bg-white/50 backdrop-blur-md rounded-b-3xl">
+        <h1 class="text-3xl font-bold text-orange-800 tracking-tight">Nhịp Cầu Tâm Giao</h1>
+        <p class="text-orange-600 mt-2 text-sm font-medium">Lắng nghe để hiểu, chia sẻ để yêu thương</p>
+    </header>
+
+    <!-- Khu vực Bộ lọc chủ đề -->
+    <div id="category-container" class="flex justify-center gap-2 mt-6 px-4 flex-wrap">
+        <!-- Các nút chủ đề sẽ được JS tạo ra ở đây -->
+    </div>
+
+    <!-- Khu vực Thẻ bài -->
+    <main class="flex-1 flex flex-col items-center justify-center p-6 perspective-1000">
+        
+        <!-- Khung chứa thẻ bài -->
+        <div id="card-container" class="relative w-full max-w-sm aspect-[3/4] cursor-pointer group" onclick="flipCard()">
+            <div id="card-wrapper" class="w-full h-full absolute preserve-3d">
+
+                <!-- MẶT SAU (LÚC ÚP BÀI) -->
+                <div class="absolute w-full h-full backface-hidden bg-gradient-to-br from-orange-500 to-red-500 rounded-3xl shadow-2xl flex flex-col items-center justify-center border-4 border-white/20">
+                    <div class="w-24 h-24 rounded-full border-4 border-white/30 flex items-center justify-center mb-4">
+                         <!-- Icon Trái tim trắng -->
+                         <svg class="text-white w-12 h-12" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                    </div>
+                    <span class="text-white font-bold text-xl tracking-widest uppercase">Rút Thẻ</span>
+                    <p class="text-orange-100 mt-4 text-sm px-8 text-center">Bấm để lật thẻ và trả lời câu hỏi</p>
+                </div>
+
+                <!-- MẶT TRƯỚC (LÚC NGỬA BÀI CÓ CÂU HỎI) -->
+                <div id="card-front" class="absolute w-full h-full backface-hidden bg-white rounded-3xl shadow-2xl flex flex-col items-center text-center p-8 border-4 border-white rotate-y-180">
+                    <!-- Nội dung câu hỏi sẽ được đổ vào đây -->
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Nút bốc bài -->
+        <div class="mt-10 flex gap-4">
+            <button id="next-btn" onclick="drawRandomCard()" class="flex items-center gap-2 bg-gray-900 text-white px-8 py-4 rounded-2xl font-bold shadow-lg hover:bg-gray-800 active:scale-95 transition-all">
+                <svg id="refresh-icon" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                Rút câu hỏi mới
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-4 text-orange-600/60 text-sm font-medium">
+        Thiết kế dành riêng cho sự gắn kết nhóm nhỏ
+    </footer>
+
+    <!-- Logic Javascript điều khiển Game -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Kho chứa các Icon dạng SVG (Thay thế cho thư viện lỗi lúc nãy)
+        const ICONS = {
+            heart: '<svg class="w-8 h-8 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
+            coffee: '<svg class="w-8 h-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>',
+            sparkles: '<svg class="w-8 h-8 text-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>'
+        };
+
+        // Danh sách câu hỏi
+        const CARD_DATA = [
+          { id: 1, category: 'Đời sống', iconType: 'coffee', color: 'text-blue-500', bg: 'bg-blue-50', question: 'Kỷ niệm đáng nhớ nhất thời thơ ấu của bạn là gì?' },
+          { id: 2, category: 'Đời sống', iconType: 'coffee', color: 'text-blue-500', bg: 'bg-blue-50', question: 'Điều gì làm bạn cảm thấy bình an nhất sau một ngày làm việc/học tập mệt mỏi?' },
+          { id: 3, category: 'Đời sống', iconType: 'coffee', color: 'text-blue-500', bg: 'bg-blue-50', question: 'Một thói quen tốt mà bạn đang cố gắng xây dựng trong năm nay?' },
+          { id: 4, category: 'Đời sống', iconType: 'coffee', color: 'text-blue-500', bg: 'bg-blue-50', question: 'Nếu có một ngày hoàn toàn rảnh rỗi, bạn sẽ dành nó để làm gì?' },
+          { id: 5, category: 'Đời sống', iconType: 'coffee', color: 'text-blue-500', bg: 'bg-blue-50', question: 'Một bài học đắt giá bạn rút ra được từ một thất bại trong quá khứ?' },
+          
+          { id: 6, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Câu Kinh Thánh nào luôn nâng đỡ bạn trong những lúc khó khăn nhất?' },
+          { id: 7, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Hãy kể về một lần bạn nhận thấy sự tể trị (hoặc sự đáp lời) của Chúa rõ ràng nhất trong đời mình.' },
+          { id: 8, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Bạn thường cầu nguyện cho điều gì nhiều nhất trong khoảng thời gian này?' },
+          { id: 9, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Nếu được ngồi trò chuyện với một nhân vật trong Kinh Thánh (ngoài Chúa Jesus), bạn chọn ai và tại sao?' },
+          { id: 10, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Một bài Thánh ca hoặc Thánh nhạc nào luôn khiến bạn cảm động khi hát/nghe?' },
+          { id: 11, category: 'Tâm tình', iconType: 'heart', color: 'text-red-500', bg: 'bg-red-50', question: 'Điều gì là thử thách lớn nhất đối với đức tin của bạn hiện tại?' },
+
+          { id: 12, category: 'Vui vẻ', iconType: 'sparkles', color: 'text-amber-500', bg: 'bg-amber-50', question: 'Nếu bắt buộc phải ăn một món duy nhất mỗi ngày trong suốt 1 năm, bạn sẽ chọn món gì?' },
+          { id: 13, category: 'Vui vẻ', iconType: 'sparkles', color: 'text-amber-500', bg: 'bg-amber-50', question: 'Một "tài lẻ" vô tri hoặc kỳ quặc nhất mà bạn có thể làm là gì?' },
+          { id: 14, category: 'Vui vẻ', iconType: 'sparkles', color: 'text-amber-500', bg: 'bg-amber-50', question: 'Nếu bị kẹt trên đảo hoang và chỉ được mang theo 1 người trong nhóm mình ngay lúc này, bạn chọn ai?' },
+          { id: 15, category: 'Vui vẻ', iconType: 'sparkles', color: 'text-amber-500', bg: 'bg-amber-50', question: 'Nếu cuộc đời bạn là một bộ phim, tựa đề của bộ phim đó sẽ là gì?' },
+          { id: 16, category: 'Vui vẻ', iconType: 'sparkles', color: 'text-amber-500', bg: 'bg-amber-50', question: 'Bạn thích được tặng một món quà đắt tiền hay một trải nghiệm thú vị (như đi du lịch)?' }
+        ];
+
+        const CATEGORIES = ['Tất cả', 'Đời sống', 'Tâm tình', 'Vui vẻ'];
+
+        // --- HỆ THỐNG ĐỒNG BỘ ĐA NGƯỜI CHƠI ---
+        let db, auth;
+        let isMultiplayer = false;
+        let globalDrawnIds = [];
+        const ROOM_ID = "nhom-nho-room-1";
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        try {
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+            if (firebaseConfig) {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                isMultiplayer = true;
+
+                const initAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+                initAuth();
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gameState', ROOM_ID);
+                        const docSnap = await getDoc(roomRef);
+                        if (!docSnap.exists()) {
+                            await setDoc(roomRef, { drawnIds: [] });
+                        }
+
+                        // Lắng nghe dữ liệu realtime từ mọi điện thoại
+                        onSnapshot(roomRef, (snapshot) => {
+                            if (snapshot.exists()) {
+                                globalDrawnIds = snapshot.data().drawnIds || [];
+                            }
+                        }, (error) => console.error("Lỗi đồng bộ:", error));
+                    }
+                });
+            }
+        } catch(e) {
+            console.log("Chạy offline do thiếu cấu hình máy chủ.");
+        }
+
+        // Các biến lưu trữ trạng thái Game
+        let currentCard = null;
+        let isFlipped = false;
+        let activeCategory = 'Tất cả';
+        let isAnimating = false;
+
+        // Trỏ tới các thành phần HTML
+        const cardWrapper = document.getElementById('card-wrapper');
+        const cardFront = document.getElementById('card-front');
+        const categoryContainer = document.getElementById('category-container');
+        const refreshIcon = document.getElementById('refresh-icon');
+        const nextBtn = document.getElementById('next-btn');
+
+        // Gắn sự kiện click vào window object để gọi được từ HTML
+        window.drawRandomCard = drawRandomCard;
+        window.flipCard = flipCard;
+        window.handleCategoryChange = handleCategoryChange;
+
+        function init() {
+            renderCategories();
+            // Không tự động rút bài khi mở web nữa, mỗi người sẽ tự bấm thẻ của mình.
+            updateCardTransform(); 
+        }
+
+        function renderCategories() {
+            categoryContainer.innerHTML = '';
+            CATEGORIES.forEach(cat => {
+                const btn = document.createElement('button');
+                const isActive = activeCategory === cat;
+                btn.className = `px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
+                    isActive 
+                    ? 'bg-orange-500 text-white shadow-md transform scale-105' 
+                    : 'bg-white text-orange-700 hover:bg-orange-100 border border-orange-200'
+                }`;
+                btn.textContent = cat;
+                btn.onclick = () => handleCategoryChange(cat);
+                categoryContainer.appendChild(btn);
+            });
+        }
+
+        function handleCategoryChange(category) {
+            if (isAnimating) return;
+            activeCategory = category;
+            renderCategories();
+        }
+
+        // --- THUẬT TOÁN TỶ LỆ: 60% Tâm Tình, 20% Đời Sống, 20% Vui vẻ ---
+        function getRandomCardWithProbability(availableCards) {
+            // Nếu người chơi chọn 1 chủ đề cụ thể, thì chỉ bốc trong chủ đề đó
+            if (activeCategory !== 'Tất cả') {
+                const cards = availableCards.filter(c => c.category === activeCategory);
+                if (cards.length === 0) return null;
+                return cards[Math.floor(Math.random() * cards.length)];
+            }
+
+            // Nếu chọn "Tất cả", áp dụng tỷ lệ
+            const tamTinhCards = availableCards.filter(c => c.category === 'Tâm tình');
+            const doiSongCards = availableCards.filter(c => c.category === 'Đời sống');
+            const vuiVeCards = availableCards.filter(c => c.category === 'Vui vẻ');
+
+            const roll = Math.random() * 100;
+            let pool = [];
+
+            if (roll < 60 && tamTinhCards.length > 0) pool = tamTinhCards;
+            else if (roll >= 60 && roll < 80 && doiSongCards.length > 0) pool = doiSongCards;
+            else if (roll >= 80 && vuiVeCards.length > 0) pool = vuiVeCards;
+
+            // Cơ chế bảo vệ: Nếu vô tình bốc vào tỷ lệ của chủ đề đã hết sạch câu hỏi, 
+            // tự động chuyển sang bốc các chủ đề còn lại
+            if (pool.length === 0) {
+                if (tamTinhCards.length > 0) pool = tamTinhCards;
+                else if (doiSongCards.length > 0) pool = doiSongCards;
+                else if (vuiVeCards.length > 0) pool = vuiVeCards;
+                else return null;
+            }
+
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+
+        async function drawRandomCard() {
+            if (isAnimating) return;
+
+            // Chỉ lọc ra các thẻ mà CHƯA CÓ AI trong nhóm bốc trúng
+            let availableCards = CARD_DATA.filter(c => !globalDrawnIds.includes(c.id));
+
+            if (availableCards.length === 0) {
+                alert("Hoan hô! Nhóm đã trả lời hết câu hỏi. Bắt đầu vòng mới nhé!");
+                globalDrawnIds = [];
+                if (isMultiplayer && db) {
+                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gameState', ROOM_ID);
+                    await updateDoc(roomRef, { drawnIds: [] });
+                }
+                availableCards = CARD_DATA;
+            }
+
+            const nextCard = getRandomCardWithProbability(availableCards);
+            if (!nextCard) return;
+
+            isAnimating = true;
+            isFlipped = false;
+            updateCardTransform();
+            
+            refreshIcon.classList.add('animate-spin');
+            nextBtn.classList.add('opacity-50');
+
+            setTimeout(async () => {
+                currentCard = nextCard;
+                
+                // Đồng bộ việc đã bốc thẻ này lên hệ thống chung cho 19 người kia
+                if (!globalDrawnIds.includes(nextCard.id)) {
+                    globalDrawnIds.push(nextCard.id);
+                }
+                if (isMultiplayer && db) {
+                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gameState', ROOM_ID);
+                    await updateDoc(roomRef, { drawnIds: globalDrawnIds });
+                }
+
+                renderCardContent();
+                isFlipped = true; 
+                updateCardTransform();
+                
+                isAnimating = false;
+                refreshIcon.classList.remove('animate-spin');
+                nextBtn.classList.remove('opacity-50');
+            }, 400);
+        }
+
+        function flipCard() {
+            if (isAnimating) return;
+            // Nếu mới vào chưa bốc thẻ nào, bấm vào mặt sau sẽ tự bốc
+            if (!isFlipped && !currentCard) {
+                drawRandomCard();
+                return;
+            }
+            if (!isFlipped) {
+                isFlipped = true;
+                updateCardTransform();
+            }
+        }
+
+        function updateCardTransform() {
+            if (isFlipped) {
+                cardWrapper.classList.add('rotate-y-180');
+            } else {
+                cardWrapper.classList.remove('rotate-y-180');
+            }
+        }
+
+        function renderCardContent() {
+            if (!currentCard) return;
+            
+            cardFront.innerHTML = `
+                <div class="w-16 h-16 rounded-full ${currentCard.bg} flex items-center justify-center mb-6 shadow-sm">
+                    ${ICONS[currentCard.iconType]}
+                </div>
+                
+                <span class="text-xs font-bold uppercase tracking-wider ${currentCard.color} mb-4">
+                    ${currentCard.category}
+                </span>
+
+                <div class="flex-1 flex items-center justify-center">
+                    <h2 class="text-2xl font-bold text-gray-800 leading-snug">
+                        "${currentCard.question}"
+                    </h2>
+                </div>
+
+                <div class="w-full flex justify-between mt-6 opacity-20">
+                    <svg class="w-6 h-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+                    <svg class="w-6 h-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+                </div>
+            `;
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
