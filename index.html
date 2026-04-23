@@ -17,7 +17,7 @@
         #card-wrapper { transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         
         /* Hiệu ứng gây cấn (rung lắc nhẹ và phóng to trước khi lật) */
-        #card-container { transition: transform 0.3s ease; }
+        #card-container { transition: transform 0.3s ease; z-index: 10; }
         .suspense-active {
             animation: suspense-shake 0.1s linear infinite;
             transform: scale(1.05);
@@ -34,6 +34,7 @@
         /* Hiệu ứng Icon gợi ý nổ ra rồi bay lên biến mất */
         .floating-icon {
             animation: float-fade 1.5s ease-out forwards;
+            z-index: 50;
         }
         @keyframes float-fade {
             0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
@@ -42,16 +43,16 @@
         }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 flex flex-col font-sans">
+<body class="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 flex flex-col font-sans overflow-hidden">
 
     <!-- Header -->
-    <header class="pt-8 pb-4 px-6 text-center shadow-sm bg-white/50 backdrop-blur-md rounded-b-3xl">
+    <header class="pt-8 pb-4 px-6 text-center shadow-sm bg-white/50 backdrop-blur-md rounded-b-3xl relative z-30">
         <h1 class="text-3xl font-bold text-orange-800 tracking-tight">WE ARE KALEV 😘</h1>
         <p class="text-orange-600 mt-2 text-sm font-medium">Tâm tình - vui vẻ - ăn - ngủ</p>
     </header>
 
-    <!-- Khu vực Thẻ bài -->
-    <main class="flex-1 flex flex-col items-center justify-center p-6 perspective-1000 mt-4">
+    <!-- Khu vực Bàn chơi chính -->
+    <main class="flex-1 flex flex-col items-center justify-center p-6 perspective-1000 mt-4 relative w-full h-full">
         
         <!-- Khung chứa thẻ bài -->
         <div id="card-container" class="relative w-full max-w-sm aspect-[3/4] cursor-pointer group" onclick="flipCard()">
@@ -59,12 +60,12 @@
 
                 <!-- MẶT SAU (LÚC ÚP BÀI) -->
                 <div class="absolute w-full h-full backface-hidden bg-gradient-to-br from-orange-500 to-red-500 rounded-3xl shadow-2xl flex flex-col items-center justify-center border-4 border-white/20">
-                    <div class="w-24 h-24 rounded-full border-4 border-white/30 flex items-center justify-center mb-4">
+                    <div class="w-24 h-24 rounded-full border-4 border-white/30 flex items-center justify-center mb-4 bg-white/10 backdrop-blur-sm">
                          <!-- Icon Trái tim trắng -->
                          <svg class="text-white w-12 h-12" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
                     </div>
                     <span class="text-white font-bold text-xl tracking-widest uppercase">Rút Thẻ</span>
-                    <p class="text-orange-100 mt-4 text-sm px-8 text-center">Sẵn sàng đón nhận câu hỏi tiếp theo</p>
+                    <p class="text-orange-100 mt-4 text-sm px-8 text-center font-medium">Sẵn sàng đón nhận câu hỏi tiếp theo</p>
                 </div>
 
                 <!-- MẶT TRƯỚC (LÚC NGỬA BÀI CÓ CÂU HỎI) -->
@@ -76,8 +77,8 @@
         </div>
 
         <!-- Nút bốc bài -->
-        <div class="mt-12 flex gap-4">
-            <button id="next-btn" onclick="drawRandomCard()" class="flex items-center gap-2 bg-gray-900 text-white px-8 py-4 rounded-2xl font-bold shadow-lg hover:bg-gray-800 active:scale-95 transition-all">
+        <div class="mt-12 flex gap-4 relative z-30">
+            <button id="next-btn" onclick="drawRandomCard()" class="flex items-center gap-2 bg-gray-900 text-white px-8 py-4 rounded-2xl font-bold shadow-2xl hover:bg-gray-800 active:scale-95 transition-all">
                 <svg id="refresh-icon" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                 Rút câu hỏi mới
             </button>
@@ -86,8 +87,8 @@
     </main>
 
     <!-- Footer -->
-    <footer class="text-center py-4 text-orange-600/60 text-sm font-medium">
-        Thiết kế dành riêng cho sự gắn kết nhóm nhỏ
+    <footer class="text-center py-4 text-orange-600/60 text-sm font-medium relative z-30">
+        Thiết kế dành riêng cho nhóm KALEV
     </footer>
 
     <!-- Logic Javascript điều khiển Game -->
@@ -96,26 +97,60 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Danh sách câu hỏi (Giữ nguyên các thuộc tính phân loại để xử lý logic ngầm)
+        // Danh sách câu hỏi (Sẽ không bao giờ lặp lại cho đến khi bốc hết)
         const CARD_DATA = [
-          { id: 1, category: 'Đời sống', question: 'Kỷ niệm đáng nhớ nhất thời thơ ấu của bạn là gì?' },
-          { id: 2, category: 'Đời sống', question: 'Điều gì làm bạn cảm thấy bình an nhất sau một ngày làm việc/học tập mệt mỏi?' },
-          { id: 3, category: 'Đời sống', question: 'Một thói quen tốt mà bạn đang cố gắng xây dựng trong năm nay?' },
-          { id: 4, category: 'Đời sống', question: 'Nếu có một ngày hoàn toàn rảnh rỗi, bạn sẽ dành nó để làm gì?' },
-          { id: 5, category: 'Đời sống', question: 'Một bài học đắt giá bạn rút ra được từ một thất bại trong quá khứ?' },
-          
-          { id: 6, category: 'Tâm tình', question: 'Câu Kinh Thánh nào luôn nâng đỡ bạn trong những lúc khó khăn nhất?' },
-          { id: 7, category: 'Tâm tình', question: 'Hãy kể về một lần bạn nhận thấy sự tể trị (hoặc sự đáp lời) của Chúa rõ ràng nhất trong đời mình.' },
-          { id: 8, category: 'Tâm tình', question: 'Bạn thường cầu nguyện cho điều gì nhiều nhất trong khoảng thời gian này?' },
-          { id: 9, category: 'Tâm tình', question: 'Nếu được ngồi trò chuyện với một nhân vật trong Kinh Thánh (ngoài Chúa Jesus), bạn chọn ai và tại sao?' },
-          { id: 10, category: 'Tâm tình', question: 'Một bài Thánh ca hoặc Thánh nhạc nào luôn khiến bạn cảm động khi hát/nghe?' },
-          { id: 11, category: 'Tâm tình', question: 'Điều gì là thử thách lớn nhất đối với đức tin của bạn hiện tại?' },
+          // --- THẺ ĐỜI SỐNG ---
+          { id: 1, category: 'Đời sống', question: 'Bạn quan trọng trí tuệ hay ngoại hình? Vì sao?' },
+          { id: 2, category: 'Đời sống', question: 'Mình không thể chịu được khi thấy người khác...' },
+          { id: 3, category: 'Đời sống', question: 'Điều gì khiến bạn lo lắng nhất về tương lai? Điều gì làm bạn có hy vọng về tương lai?' },
+          { id: 4, category: 'Đời sống', question: 'Bạn muốn được người khác nhớ gì về mình nhất?' },
+          { id: 5, category: 'Đời sống', question: 'Hãy kể tên và giải thích 2 quyết định rất khó khăn mà bạn phải đưa ra.' },
+          { id: 6, category: 'Đời sống', question: 'Sau khi tan làm và rất mệt mỏi, bạn có thích đi gặp nhiều người để xả stress hay thích về nhà ở một mình?' },
+          { id: 7, category: 'Đời sống', question: 'Có điều gì bạn rất ghét nhưng bây giờ lại rất yêu thích không? Vì sao?' },
+          { id: 8, category: 'Đời sống', question: 'Với bạn, thành công trong cuộc sống có nghĩa là...' },
+          { id: 9, category: 'Đời sống', question: 'Bạn có từng thích một người và không dám cho họ biết tình cảm đó?' },
+          { id: 10, category: 'Đời sống', question: 'Phẩm chất bạn cần nhất ở một người bạn là gì? Bản thân bạn có phẩm chất đó hay không?' },
+          { id: 11, category: 'Đời sống', question: 'Hãy kể về một người bạn trong ban Thanh Niên mà bạn nghĩ đến đầu tiên khi gặp khó khăn trong cuộc sống.' },
+          { id: 12, category: 'Đời sống', question: 'Hãy kể và giải thích về một cử chỉ tử tế với bạn mà bạn không thể quên được.' },
+          { id: 13, category: 'Đời sống', question: 'Hãy kể về một lần bạn khóc trước người khác và một lần bạn khóc một mình.' },
+          { id: 14, category: 'Đời sống', question: 'Điều gì đã luôn và sẽ quan trọng đối với bạn? Bạn cảm thấy thế nào nếu đánh mất nó?' },
+          { id: 15, category: 'Đời sống', question: 'Cách tốt nhất bạn từng làm để giải quyết mâu thuẫn trong một mối quan hệ (tình cảm/bạn bè)?' },
+          { id: 16, category: 'Đời sống', question: 'Bạn sẽ làm gì nếu một người bạn thân trong Chúa đột nhiên cô lập/không chơi với bạn nữa?' },
+          { id: 17, category: 'Đời sống', question: 'Nếu bắt buộc phải ăn một món duy nhất mỗi ngày trong suốt 1 năm, bạn sẽ chọn món gì?' },
 
-          { id: 12, category: 'Vui vẻ', question: 'Nếu bắt buộc phải ăn một món duy nhất mỗi ngày trong suốt 1 năm, bạn sẽ chọn món gì?' },
-          { id: 13, category: 'Vui vẻ', question: 'Một "tài lẻ" vô tri hoặc kỳ quặc nhất mà bạn có thể làm là gì?' },
-          { id: 14, category: 'Vui vẻ', question: 'Nếu bị kẹt trên đảo hoang và chỉ được mang theo 1 người trong nhóm mình ngay lúc này, bạn chọn ai?' },
-          { id: 15, category: 'Vui vẻ', question: 'Nếu cuộc đời bạn là một bộ phim, tựa đề của bộ phim đó sẽ là gì?' },
-          { id: 16, category: 'Vui vẻ', question: 'Bạn thích được tặng một món quà đắt tiền hay một trải nghiệm thú vị (như đi du lịch)?' }
+          // --- THẺ THUỘC LINH ---
+          { id: 18, category: 'Thuộc linh', question: 'Trong 9 đặc điểm của trái Thánh Linh, đâu là đặc tính bạn mong muốn có thêm nhiều? Tại sao?' },
+          { id: 19, category: 'Thuộc linh', question: 'Bạn thường tìm đến Chúa khi nào? Bạn có đang cảm thấy ngọt ngào với Chúa không?' },
+          { id: 20, category: 'Thuộc linh', question: 'Hãy kể về một cơ hội được phục vụ Chúa mà bạn nhớ nhất?' },
+          { id: 21, category: 'Thuộc linh', question: 'Hãy kể tên 2 điều mà bạn nghĩ mọi người nên thử ít nhất 1 lần.' },
+          { id: 22, category: 'Thuộc linh', question: 'Ai là người có ảnh hưởng tốt đối với bạn trong đức tin? Bạn có thể chia sẻ thêm về điều mà bạn ấn tượng nhất về người ấy không?' },
+          { id: 23, category: 'Thuộc linh', question: 'Nếu được chọn ra 3 điều bạn biết ơn Chúa nhất, điều đó sẽ là gì?' },
+          { id: 24, category: 'Thuộc linh', question: 'Động lực nào khiến bạn đi nhóm mỗi sáng Chúa Nhật/nhóm ban ngành?' },
+          { id: 25, category: 'Thuộc linh', question: 'Hãy kể về một điều bạn mong muốn nhóm nhỏ/ban Thanh Niên thay đổi (thêm mới/chấm dứt/cải thiện).' },
+          { id: 26, category: 'Thuộc linh', question: 'Bài hát ngợi khen thờ phượng gần đây bạn thích nhất tên gì? Vì sao bạn thích bài hát ấy?' },
+          { id: 27, category: 'Thuộc linh', question: 'Hãy kể về một lần bạn phải chờ đợi câu trả lời của Chúa và kết quả của sự chờ đợi đó?' },
+          { id: 28, category: 'Thuộc linh', question: 'Nhân vật trong Kinh Thánh mà bạn thích nhất (ngoại trừ Chúa Giê-xu) vì sao?' },
+          { id: 29, category: 'Thuộc linh', question: 'Hãy kể về một lần bạn cảm thấy mệt mỏi khi làm “công việc nhà thờ”. Theo bạn, lý do của sự mệt mỏi đó là gì?' },
+          { id: 30, category: 'Thuộc linh', question: 'Cơ hội nào Chúa cho mà bạn nghĩ mình đã bỏ lỡ? Bạn cảm thấy như thế nào? Nếu có cơ hội lần nữa bạn sẽ làm gì?' },
+          { id: 31, category: 'Thuộc linh', question: 'Một điều bạn học được từ Chúa Giê-xu? Bạn đã áp dụng bài học này cho mình hay chưa?' },
+          { id: 32, category: 'Thuộc linh', question: 'Bài học được Chúa dạy mà bạn được đụng chạm nhất là gì?' },
+          { id: 33, category: 'Thuộc linh', question: 'Một bài Thánh ca hoặc Thánh nhạc nào luôn khiến bạn cảm động khi hát/nghe?' },
+          { id: 34, category: 'Thuộc linh', question: 'Điều gì là thử thách lớn nhất đối với đức tin của bạn hiện tại?' },
+
+          // --- THẺ HOẠT ĐỘNG - HÀI HƯỚC ---
+          { id: 35, category: 'Hoạt động - Hài hước', question: 'Hãy gửi lời cảm ơn chân thành đến từng người.' },
+          { id: 36, category: 'Hoạt động - Hài hước', question: 'Hãy gửi lời khen thật lòng đến từng người.' },
+          { id: 37, category: 'Hoạt động - Hài hước', question: 'Hãy gửi một lời khích lệ đến ai đó.' },
+          { id: 38, category: 'Hoạt động - Hài hước', question: 'Cả nhóm hãy mô tả rõ ràng một điều ấn tượng về người bên tay trái (bắt đầu từ người bốc trúng lá này).' },
+          { id: 39, category: 'Hoạt động - Hài hước', question: 'Người truyền tin: Hãy truyền cho người bên trái 1 câu có 10 từ - 10 người bên trái phải lần lượt truyền câu này cho nhau. Cuối cùng, mỗi người sẽ lần lượt nói một từ. Nếu 10 người nói đúng thì người truyền tin bị phạt và ngược lại.' },
+          { id: 40, category: 'Hoạt động - Hài hước', question: 'Hãy mô tả một nhân vật Kinh Thánh để cả nhóm đoán.' },
+          { id: 41, category: 'Hoạt động - Hài hước', question: 'Hãy chọn một người làm đồng đội. Bạn ghi ra một từ rồi miêu tả để đồng đội đoán ra từ đó. Nếu đến lần đoán thứ 3 đồng đội của bạn không đoán được thì cả 2 bạn bị phạt.' },
+          { id: 42, category: 'Hoạt động - Hài hước', question: 'Hãy đặt biệt danh cho 2 người trong nhóm; trong suốt buổi cả nhóm phải gọi 2 người đó bằng biệt danh. Nếu có ai đó gọi sai thì người đó bị phạt.' },
+          { id: 43, category: 'Hoạt động - Hài hước', question: 'Nói 1 câu khiến 2 người bên trái cười.' },
+          { id: 44, category: 'Hoạt động - Hài hước', question: 'Chọn 1 người làm “đối thủ” để chơi nối từ với họ, ai thua sẽ bị phạt.' },
+          { id: 45, category: 'Hoạt động - Hài hước', question: 'Chọn 1 người làm đối thủ; cả hai ngồi nhìn nhau, ai cười trước sẽ thua.' },
+          { id: 46, category: 'Hoạt động - Hài hước', question: 'Ngoài bạn ra, cả nhóm đứng lên đổi chỗ trong 5 giây (ai không kịp → phạt).' },
+          { id: 47, category: 'Hoạt động - Hài hước', question: 'THÊM: Đăng story về nhóm nhỏ và để nó trong 24h' }
         ];
 
         // --- HỆ THỐNG ÂM THANH (Web Audio API) ---
@@ -129,7 +164,6 @@
             }
         }
         
-        // Trình giả lập sóng âm
         function playTone(freq, type, duration, vol = 0.1) {
             if (!audioCtx) return;
             const osc = audioCtx.createOscillator();
@@ -148,7 +182,7 @@
         function startSuspenseSound() {
             let tick = 0;
             suspenseInterval = setInterval(() => {
-                playTone(150 + (tick % 2) * 50, 'triangle', 0.1, 0.05); // Tiếng nhịp tim/trống
+                playTone(150 + (tick % 2) * 50, 'triangle', 0.1, 0.05); // Tiếng nhịp tim
                 tick++;
             }, 150);
         }
@@ -158,20 +192,20 @@
         }
 
         function playRevealSound() {
-            playTone(523.25, 'sine', 0.4, 0.1); // Nốt Đồ
-            setTimeout(() => playTone(659.25, 'sine', 0.4, 0.1), 100); // Nốt Mi
-            setTimeout(() => playTone(783.99, 'sine', 0.6, 0.15), 200); // Nốt Son (Hợp âm rạng rỡ)
+            playTone(523.25, 'sine', 0.4, 0.1); 
+            setTimeout(() => playTone(659.25, 'sine', 0.4, 0.1), 100); 
+            setTimeout(() => playTone(783.99, 'sine', 0.6, 0.15), 200); 
         }
 
         function playClickSound() {
-            playTone(600, 'sine', 0.1, 0.05); // Tiếng click nhẹ
+            playTone(600, 'sine', 0.1, 0.05); 
         }
 
         // --- HỆ THỐNG ICON GỢI Ý BÍ MẬT ---
         const SECRET_ICONS = {
-            'Đời sống': '<svg class="w-16 h-16 text-blue-500 drop-shadow-xl" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/></svg>',
-            'Tâm tình': '<svg class="w-16 h-16 text-red-500 drop-shadow-xl" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
-            'Vui vẻ': '<svg class="w-16 h-16 text-amber-500 drop-shadow-xl" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
+            'Đời sống': '<svg class="w-16 h-16 text-blue-400 drop-shadow-xl" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/></svg>',
+            'Thuộc linh': '<svg class="w-16 h-16 text-red-400 drop-shadow-xl" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
+            'Hoạt động - Hài hước': '<svg class="w-16 h-16 text-amber-400 drop-shadow-xl" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
         };
 
         function spawnFloatingIcon(category) {
@@ -180,15 +214,14 @@
             el.innerHTML = SECRET_ICONS[category];
             el.className = 'absolute z-50 pointer-events-none floating-icon';
 
-            // Xuất hiện ngẫu nhiên xung quanh khu vực thẻ
-            const randomX = Math.floor(Math.random() * 80) + 10; // Từ 10% đến 90%
+            const randomX = Math.floor(Math.random() * 80) + 10; 
             const randomY = Math.floor(Math.random() * 80) + 10;
             
             el.style.left = `${randomX}%`;
             el.style.top = `${randomY}%`;
 
             container.appendChild(el);
-            setTimeout(() => el.remove(), 1500); // Xóa khỏi bộ nhớ sau 1.5s
+            setTimeout(() => el.remove(), 1500); 
         }
 
         // --- HỆ THỐNG ĐỒNG BỘ ĐA NGƯỜI CHƠI ---
@@ -223,7 +256,6 @@
                             await setDoc(roomRef, { drawnIds: [] });
                         }
 
-                        // Lắng nghe dữ liệu realtime từ mọi điện thoại
                         onSnapshot(roomRef, (snapshot) => {
                             if (snapshot.exists()) {
                                 globalDrawnIds = snapshot.data().drawnIds || [];
@@ -236,19 +268,16 @@
             console.log("Chạy offline do thiếu cấu hình máy chủ.");
         }
 
-        // Các biến lưu trữ trạng thái Game
         let currentCard = null;
         let isFlipped = false;
         let isAnimating = false;
 
-        // Trỏ tới các thành phần HTML
         const cardContainer = document.getElementById('card-container');
         const cardWrapper = document.getElementById('card-wrapper');
         const cardFront = document.getElementById('card-front');
         const refreshIcon = document.getElementById('refresh-icon');
         const nextBtn = document.getElementById('next-btn');
 
-        // Gắn sự kiện click vào window object để gọi được từ HTML
         window.drawRandomCard = drawRandomCard;
         window.flipCard = flipCard;
 
@@ -256,25 +285,24 @@
             updateCardTransform(); 
         }
 
-        // --- THUẬT TOÁN TỶ LỆ: 60% Tâm Tình, 20% Đời Sống, 20% Vui vẻ ---
+        // Thuật toán tỷ lệ: 35% Đời Sống - 35% Thuộc Linh - 30% Hoạt động/Hài hước
         function getRandomCardWithProbability(availableCards) {
-            const tamTinhCards = availableCards.filter(c => c.category === 'Tâm tình');
             const doiSongCards = availableCards.filter(c => c.category === 'Đời sống');
-            const vuiVeCards = availableCards.filter(c => c.category === 'Vui vẻ');
+            const thuocLinhCards = availableCards.filter(c => c.category === 'Thuộc linh');
+            const hoatDongCards = availableCards.filter(c => c.category === 'Hoạt động - Hài hước');
 
             const roll = Math.random() * 100;
             let pool = [];
 
-            if (roll < 60 && tamTinhCards.length > 0) pool = tamTinhCards;
-            else if (roll >= 60 && roll < 80 && doiSongCards.length > 0) pool = doiSongCards;
-            else if (roll >= 80 && vuiVeCards.length > 0) pool = vuiVeCards;
+            if (roll < 35 && doiSongCards.length > 0) pool = doiSongCards;
+            else if (roll >= 35 && roll < 70 && thuocLinhCards.length > 0) pool = thuocLinhCards;
+            else if (roll >= 70 && hoatDongCards.length > 0) pool = hoatDongCards;
 
-            // Cơ chế bảo vệ: Nếu vô tình bốc vào tỷ lệ của chủ đề đã hết sạch câu hỏi, 
-            // tự động chuyển sang bốc các chủ đề còn lại
+            // Nếu vòng quay rớt vào chủ đề đã bốc hết câu hỏi, tự động chuyển qua chủ đề còn lại
             if (pool.length === 0) {
-                if (tamTinhCards.length > 0) pool = tamTinhCards;
-                else if (doiSongCards.length > 0) pool = doiSongCards;
-                else if (vuiVeCards.length > 0) pool = vuiVeCards;
+                if (doiSongCards.length > 0) pool = doiSongCards;
+                else if (thuocLinhCards.length > 0) pool = thuocLinhCards;
+                else if (hoatDongCards.length > 0) pool = hoatDongCards;
                 else return null;
             }
 
@@ -282,20 +310,21 @@
         }
 
         async function drawRandomCard() {
-            initAudio(); // Phải kích hoạt luồng âm thanh ngay khi người dùng bấm
+            initAudio(); 
             if (isAnimating) return;
 
-            // Chỉ lọc ra các thẻ mà CHƯA CÓ AI trong nhóm bốc trúng
+            // QUAN TRỌNG: Lọc ra các câu chưa bốc. Nếu đã bốc rồi thì sẽ loại bỏ.
             let availableCards = CARD_DATA.filter(c => !globalDrawnIds.includes(c.id));
 
+            // Nếu đã bốc qua hết 16 câu hỏi 1 lượt
             if (availableCards.length === 0) {
-                alert("Hoan hô! Nhóm đã trả lời hết câu hỏi. Bắt đầu vòng mới nhé!");
+                alert("Hoan hô! Nhóm đã trả lời hết sạch các câu hỏi. Chúng ta sẽ xào bài lại từ đầu nhé!");
                 globalDrawnIds = [];
                 if (isMultiplayer && db) {
                     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gameState', ROOM_ID);
                     await updateDoc(roomRef, { drawnIds: [] });
                 }
-                availableCards = CARD_DATA;
+                availableCards = CARD_DATA; // Reset bộ bài
             }
 
             const nextCard = getRandomCardWithProbability(availableCards);
@@ -305,15 +334,13 @@
             refreshIcon.classList.add('animate-spin');
             nextBtn.classList.add('opacity-50');
 
-            // Hàm thực thi chuỗi UX Gây cấn
             const performFlipSequence = async () => {
-                playClickSound(); // Tiếng click khởi động
+                playClickSound(); 
                 
-                // Bước 1: Rung lắc gây cấn
+                // Rung lắc
                 cardContainer.classList.add('suspense-active');
-                startSuspenseSound(); // Bật âm thanh dồn dập
+                startSuspenseSound(); 
 
-                // Đồng bộ việc đã bốc thẻ này lên hệ thống
                 if (!globalDrawnIds.includes(nextCard.id)) {
                     globalDrawnIds.push(nextCard.id);
                 }
@@ -322,37 +349,30 @@
                     await updateDoc(roomRef, { drawnIds: globalDrawnIds });
                 }
 
-                // Bước 2: Chờ 1.2s rồi lật bài
                 setTimeout(() => {
-                    // Dừng rung lắc
                     cardContainer.classList.remove('suspense-active');
-                    stopSuspenseSound(); // Dừng nhịp trống
+                    stopSuspenseSound(); 
                     
-                    // Cập nhật câu hỏi
                     currentCard = nextCard;
                     renderCardContent();
                     
-                    // Lật ngửa thẻ bài với hiệu ứng bouncy
                     isFlipped = true; 
                     updateCardTransform();
                     
-                    playRevealSound(); // Ting ting!
-                    spawnFloatingIcon(nextCard.category); // Bắn icon gợi ý ra ngoài
+                    playRevealSound(); 
+                    spawnFloatingIcon(nextCard.category); 
 
-                    // Bước 3: Đợi lật xong (0.8s) mới mở khóa bấm
                     setTimeout(() => {
                         isAnimating = false;
                         refreshIcon.classList.remove('animate-spin');
                         nextBtn.classList.remove('opacity-50');
                     }, 800);
-                }, 1200); // 1.2 giây rung lắc
+                }, 1200); 
             };
 
-            // Nếu thẻ đang ngửa, phải úp thẻ xuống trước rồi mới chạy hiệu ứng
             if (isFlipped) {
                 isFlipped = false;
                 updateCardTransform();
-                // Đợi 0.8s cho thẻ úp hẳn
                 setTimeout(performFlipSequence, 800); 
             } else {
                 performFlipSequence();
@@ -360,9 +380,8 @@
         }
 
         function flipCard() {
-            initAudio(); // Kích hoạt luồng âm thanh
+            initAudio(); 
             if (isAnimating) return;
-            // Nếu mới vào chưa bốc thẻ nào, bấm vào mặt sau sẽ tự bốc có hiệu ứng gây cấn
             if (!isFlipped && !currentCard) {
                 drawRandomCard();
                 return;
@@ -388,7 +407,6 @@
             if (!currentCard) return;
             
             cardFront.innerHTML = `
-                <!-- Icon trích dẫn chung, không tiết lộ chủ đề -->
                 <div class="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mb-4 shadow-sm border border-orange-200">
                     <svg class="w-8 h-8 text-orange-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h4v10h-10z"/></svg>
                 </div>
@@ -399,7 +417,6 @@
                     </h2>
                 </div>
 
-                <!-- Hoa văn trang trí góc -->
                 <div class="w-full flex justify-between mt-6 opacity-20">
                     <svg class="w-6 h-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
                     <svg class="w-6 h-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
